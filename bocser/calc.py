@@ -183,7 +183,7 @@ def generate_oinp(
 def generate_default_oinp(coords : str, dihedrals : list[dihedral], oinp_name : str, constrained_opt : bool = False):
     generate_oinp(coords, dihedrals, oinp_name, NUM_OF_PROCS, ORCA_METHOD,\
                                                 CHARGE, MULTIPL, constrained_opt=constrained_opt)
-def start_calc(gjf_name : str, sbatch: bool = False):
+def start_calc(gjf_name : str, sbatch: bool = True):
     """
         Running calculation
     """	

@@ -36,6 +36,8 @@ import argparse
 from trieste.acquisition.function import ExpectedImprovement
 
 from rdkit import Chem
+from ik_loss import IKLoss, get_dihedral_angles
+from imp_var_with_ik import ImprovementVarianceWithIK
 
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
@@ -277,9 +279,10 @@ if not os.path.exists(structures_path):
     os.makedirs(structures_path)
     os.makedirs(structures_path[:-1]+"_minima"+"/")
 
-if config.acquisition_function not in {"ei", "evm"}:
-    print(f"Acquisition function should be one of the following: 'ei', 'evm', got {config.acquisition_function}; Continue with default: 'evm'")
+if config.acquisition_function not in {"ei", "evm", "ik"}:
+    print(f"Acquisition function should be one of the following: 'ei', 'evm', 'ik'; got {config.acquisition_function}; Continue with default: 'evm'")
     config.acquisition_function = "evm"
+
 
 print(f"Performing conf. search with config: {config}")
 
@@ -287,10 +290,11 @@ load_params_from_config({field.name : getattr(config, field.name) for field in f
 
 print("Coef calculator creatring")
 
+mol = Chem.RemoveHs(Chem.MolFromMolFile(MOL_FILE_NAME))
 coef_matrix = CoefCalculator(
-    mol=Chem.RemoveHs(Chem.MolFromMolFile(MOL_FILE_NAME)),
-    config=config, 
-    dir_for_inps=f"{exp_name}_scans/", 
+    mol=mol,
+    config=config,
+    dir_for_inps=f"{exp_name}_scans/",
     db_connector=LocalConnector('dihedral_logs.db')
 ).coef_matrix()
 
@@ -304,6 +308,21 @@ for ids, coefs in coef_matrix:
 
 print("Dihedral ids", DIHEDRAL_IDS)
 print("Mean func coefs", mean_func_coefs)
+
+# Attempt to detect ring dihedrals and build IK loss if possible
+try:
+    dihedral_list_all, ring_atoms_list, ik_loss_dihedrals_idxs = get_dihedral_angles(mol)
+    if ik_loss_dihedrals_idxs:
+        ik_loss = IKLoss.from_rdkit(mol, ring_atoms_list)
+        print(f"IK loss prepared. IK dihedral indices: {ik_loss_dihedrals_idxs}")
+    else:
+        ik_loss = None
+        ik_loss_dihedrals_idxs = []
+        print("No ring dihedrals detected; IK acquisition will be unavailable.")
+except Exception as e:
+    ik_loss = None
+    ik_loss_dihedrals_idxs = []
+    print(f"Failed to prepare IK loss: {e}")
 
 search_dim = len(DIHEDRAL_IDS)
 
@@ -385,6 +404,14 @@ match config.acquisition_function:
     case "ei": 
         print("Continue with ExpectedImprovement acquisition function!")
         rule = EfficientGlobalOptimization(ExpectedImprovement())
+    case "ik":
+        print("Continue with ImprovementVarianceWithIK acquisition function!")
+        # If IK loss wasn't prepared, fall back to evm
+        if ik_loss is None or len(ik_loss_dihedrals_idxs) == 0:
+            print("IK loss is not available; falling back to ExplorationalVarianceMinimizer")
+            rule = EfficientGlobalOptimization(ExplorationalVarianceMinimizer(threshold=3))
+        else:
+            rule = EfficientGlobalOptimization(ImprovementVarianceWithIK(threshold=3.0, ik_loss=ik_loss, ik_loss_idxs=ik_loss_dihedrals_idxs, ik_loss_weight=1.0))
     case _:
         raise ValueError(f"Unknown acquisition function {config.acquisition_function}")
 

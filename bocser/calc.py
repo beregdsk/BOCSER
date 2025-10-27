@@ -183,14 +183,17 @@ def generate_oinp(
 def generate_default_oinp(coords : str, dihedrals : list[dihedral], oinp_name : str, constrained_opt : bool = False):
     generate_oinp(coords, dihedrals, oinp_name, NUM_OF_PROCS, ORCA_METHOD,\
                                                 CHARGE, MULTIPL, constrained_opt=constrained_opt)
-def start_calc(gjf_name : str):
+def start_calc(gjf_name : str, sbatch: bool = False):
     """
         Running calculation
     """	
-    sbatch_name = gjf_name.split('/')[-1][:-4] + ".sh"
-    os.system("cp sbatch_temp " + sbatch_name)
-    os.system("echo \"" + ORCA_EXEC_COMMAND + " " + gjf_name + " > " + gjf_name[:-4] + ".out\"" + " >> " + sbatch_name) 
-    os.system("sbatch " + sbatch_name)    
+    if sbatch:
+        sbatch_name = gjf_name.split('/')[-1][:-4] + ".sh"
+        os.system("cp sbatch_temp " + sbatch_name)
+        os.system("echo \"" + ORCA_EXEC_COMMAND + " " + gjf_name + " > " + gjf_name[:-4] + ".out\"" + " >> " + sbatch_name) 
+        os.system("sbatch " + sbatch_name)
+    else:
+        os.system(ORCA_EXEC_COMMAND + " " + gjf_name + " > " + gjf_name[:-4] + ".out") 
 
 def mol_to_inp_name(mol_file_name : str) -> str:
     """

@@ -168,3 +168,9 @@ WARNING: Geometry Optimization
 WARNING: Found dipole moment calculation with XTB calculation
   ===> : Switching off dipole moment calculation
 
+
+ORCA finished by error termination in orca_util
+Calling Command: mpirun -np 4  /home/egor/bin/orca/orca_6_0_0_shared_openmpi416/orca_util_mpi ../C7H14 orca_hostfile ../C7H14 
+[file orca_tools/qcmsg.cpp, line 394]: 
+  .... aborting the run
+

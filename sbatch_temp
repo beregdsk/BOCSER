@@ -5,8 +5,13 @@
 #SBATCH --tasks-per-node=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --job-name=cs_orca
+
+export PATH=/opt/openmpi_4.1.6/bin:/opt/xtb_6.6.1/bin:/opt/intelmkl/mkl/2024.2/bin:/opt/nbo6:/opt/orca_6.0.1:$PATH
+export LD_LIBRARY_PATH=/opt/openmpi_4.1.6/lib:/opt/xtb_6.6.1/lib:/opt/intelmkl/mkl/2024.2/lib::/opt/orca_6.0.1/lib:$LD_LIBRARY_PATH
+
 export KMP_STACKSIZE=10G
 export OMP_STACKSIZE=10G
 export OMP_NUM_THREADS=8,1
 export MKL_NUM_THREADS=8
-
+export XTBEXE=/opt/xtb_6.7.1/bin/xtb
+export ORCADIR=/opt/orca_6.1.0/

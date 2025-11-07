@@ -36,6 +36,7 @@ import argparse
 from trieste.acquisition.function import ExpectedImprovement
 
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from ik_loss import IKLoss, get_dihedral_angles
 from imp_var_with_ik import ImprovementVarianceWithIK
 
@@ -224,6 +225,17 @@ def erase_last_from_dataset(dataset : Dataset, n : int = 1):
 
     return Dataset(query_points, observations)
 
+def extract_dofs_values(m: Chem.Mol, dihedral_ids):
+    return tf.constant(
+        [[
+            -Chem.rdMolTransforms.GetDihedralRad(
+                m.GetConformer(),
+                *dihedral_ids[i],
+            ) for i in range(len(dihedral_ids))
+        ]],
+        dtype=tf.float64,
+    )
+
 #TODO: Rewrite in tf way
 class PotentialFunction():
     def __init__(self, mean_func_coefs) -> None:
@@ -363,9 +375,9 @@ if config.load_ensemble:
     )
     print(f"Init dataset collected!\n{dataset}")
 else:
-
     for idx in range(config.num_initial_points):
-        initial_query_points = search_space.sample_sobol(1)
+        AllChem.EmbedMolecule(mol)
+        initial_query_points = extract_dofs_values(mol, DIHEDRAL_IDS)
         observed_point = observer(initial_query_points)
         if not LAST_OPT_OK:
             print(f"Optimization didn't finished well. Continue only with broken_struct_energy in required point: {observed_point}")

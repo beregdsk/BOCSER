@@ -291,12 +291,13 @@ load_params_from_config({field.name : getattr(config, field.name) for field in f
 print("Coef calculator creatring")
 
 mol = Chem.RemoveHs(Chem.MolFromMolFile(MOL_FILE_NAME))
-coef_matrix = CoefCalculator(
+coef_calc = CoefCalculator(
     mol=mol,
     config=config,
     dir_for_inps=f"{exp_name}_scans/",
     db_connector=LocalConnector('dihedral_logs.db')
-).coef_matrix()
+)
+coef_matrix = coef_calc.coef_matrix()
 
 print("Coef calculator created!")
 
@@ -309,9 +310,8 @@ for ids, coefs in coef_matrix:
 print("Dihedral ids", DIHEDRAL_IDS)
 print("Mean func coefs", mean_func_coefs)
 
-# Attempt to detect ring dihedrals and build IK loss if possible
 try:
-    dihedral_list_all, ring_atoms_list, ik_loss_dihedrals_idxs = get_dihedral_angles(mol)
+    dihedral_list_all, ring_atoms_list, ik_loss_dihedrals_idxs = coef_calc.get_ring_dihedrals(mol)
     if ik_loss_dihedrals_idxs:
         ik_loss = IKLoss.from_rdkit(mol, ring_atoms_list)
         print(f"IK loss prepared. IK dihedral indices: {ik_loss_dihedrals_idxs}")

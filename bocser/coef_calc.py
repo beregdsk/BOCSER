@@ -12,6 +12,11 @@ from calc import start_calc, wait_for_the_end_of_calc
 from coef_from_grid import calc_coefs
 from db_connector import Connector
 
+import networkx as nx
+from ik_loss import CyclicCollection
+import vf3py
+
+
 class CoefCalculator:
     """
         This class performs splitting given molecule on
@@ -49,6 +54,7 @@ class CoefCalculator:
         self.method_of_calc = config.orca_method
         self.charge = config.charge
         self.multipl = config.spin_multiplicity
+        self.af = config.acquisition_function
         self.degrees = degrees
 
         # Key is SMILES, val is idx
@@ -129,6 +135,9 @@ class CoefCalculator:
             are not interesting
         """
 
+        if bond.IsInRing():
+            return self.af == 'ik'
+
         #If one of atoms is terminal
         if len([cur for cur in bond.GetBeginAtom().GetBonds()]) < 2 or\
            len([cur for cur in bond.GetEndAtom().GetBonds()]) < 2 :
@@ -136,9 +145,6 @@ class CoefCalculator:
 
         # If bond isn't single
         if bond.GetBondType() != Chem.BondType.SINGLE:
-            return False
-
-        if bond.IsInRing():
             return False
 
         if not self.skip_triple_equal_terminal_atoms:
@@ -211,6 +217,52 @@ class CoefCalculator:
                     bond.GetEndAtomIdx(),
                     [cur.GetIdx() for cur in bond.GetEndAtom().GetNeighbors() if cur.GetIdx() != bond.GetBeginAtomIdx()][0])
 
+    def get_ring_dihedrals(self, mol):
+        edges = []
+        for bond in mol.GetBonds():
+            if not self.is_interesting(bond) or not bond.IsInRing():
+                continue
+
+            edges.append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
+            
+        graph = nx.from_edgelist(edges)
+        graph.remove_edges_from(nx.bridges(graph))
+        
+        dihedrals = []
+        dihedrals_idxs = []
+        ring_traversal = None
+        for comp in nx.connected_components(graph):
+            if len(comp) == 1:
+                continue
+            subg = graph.subgraph(comp)
+            simple_ring, mapping = vf3py.are_isomorphic(
+                nx.cycle_graph(subg.number_of_nodes()),
+                subg,
+                get_mapping=True,
+            )
+            assert simple_ring, "Only simple lone rings are supported for now"
+            assert ring_traversal is None, "Only one ring is supported for now"
+            ring_traversal = CyclicCollection(
+                [mapping[i] for i in range(subg.number_of_nodes())])
+
+            assert len(dihedrals_idxs) == 0, "Only one ring is supported for now"
+            dihedrals += [
+                tuple(ring_traversal[i + step] for step in (-1, 0, 1, 2))
+                for i in range(subg.number_of_nodes())
+            ]
+            
+            for d in dihedrals:
+                for id_, f in enumerate(self.frags.keys()):
+                    if all([d[i] in f for i in range(4)]):
+                        dihedrals_idxs.append(id_)
+                        break
+                    
+            if len(dihedrals_idxs) != len(dihedrals):
+                raise ValueError("Can't find all dihedrals in frags")
+            
+        return dihedrals, ring_traversal.a, dihedrals_idxs
+        
+            
     def convert_all_aromatic_to_aliphatic(
         self,
         cur_smiles : str
@@ -401,12 +453,14 @@ class CoefCalculator:
                     method=self.method_of_calc.lower()
                 )
             )
+            
             if len(db_response) > 0:
                 self.fetched_coefs[cur_mol_smiles] = db_response[0]
 
             SetDihedralRad(cur_mol.GetConformer(), 
-                           *self.get_idxs_to_rotate(cur_mol),
-                           0)
+                        *self.get_idxs_to_rotate(cur_mol),
+                        0)
+                
             xyz = Chem.MolToXYZBlock(cur_mol)
             idxs_to_rotate = self.get_idxs_to_rotate(cur_mol)
             filename = self.dir_for_inps + "scan_" + str(angle_number) + ".inp"

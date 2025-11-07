@@ -14,6 +14,8 @@ from typing import Dict
 
 from default_vals import ConfSearchConfig
 
+import tempfile
+
 HARTRI_TO_KCAL = 627.509474063 
 
 ORCA_EXEC_COMMAND = ConfSearchConfig.orca_exec_command
@@ -117,10 +119,24 @@ def change_dihedrals(mol_file_name : str,
     try:
         mol = Chem.MolFromMolFile(mol_file_name, removeHs = False)
         
-        for note in dihedrals:
-            atoms, degree = note
-            rdMolTransforms.SetDihedralRad(mol.GetConformer(), *atoms, degree)
-        
+        if ConfSearchConfig.acquisition_function != 'ik':
+            for note in dihedrals:
+                atoms, degree = note
+                rdMolTransforms.SetDihedralRad(mol.GetConformer(), *atoms, degree)
+        else:
+            with tempfile.NamedTemporaryFile(suffix=".xyz", delete=True) as tmp:
+                Chem.MolToMolFile(mol, tmp.name)
+                tmp_mol = Chem.RWMol(Chem.MolFromMolFile(tmp.name, removeHs=False))
+
+            mp = AllChem.MMFFGetMoleculeProperties(tmp_mol, mmffVariant='MMFF94')
+            ff = AllChem.MMFFGetMoleculeForceField(tmp_mol, mp)
+            for (a, b, c, d), value in dihedrals:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False,
+                                            np.rad2deg(-value),
+                                            np.rad2deg(-value), 1e4)
+            ff.Minimize(maxIts=10000)
+            mol = tmp_mol
+            
         if(full_block):
             return Chem.MolToXYZBlock(mol)
         return '\n'.join(Chem.MolToXYZBlock(mol).split('\n')[2:])

@@ -146,6 +146,10 @@ def change_dihedrals(mol_file_name : str,
             ff.Minimize(maxIts=10000)
             mol = tmp_mol
             
+            for i in range(len(dihedrals)):
+                a, d = dihedrals[i]
+                dihedrals[i] = a, rdMolTransforms.GetDihedralRad(mol.GetConformer(), *a)
+            
         if(full_block):
             return Chem.MolToXYZBlock(mol)
         return '\n'.join(Chem.MolToXYZBlock(mol).split('\n')[2:])

@@ -29,6 +29,8 @@ BROKEN_STRUCT_ENERGY = ConfSearchConfig.broken_struct_energy
 BOND_LENGTH_THRESHOLD = ConfSearchConfig.bond_length_threshold
 CURRENT_STRUCTURE_ID = 0 # global id for every structure that we would save
 
+ACQUISITION_FUNCTION = ConfSearchConfig.acquisition_function
+
 WRONG_GEOMETRY = False
 
 #Alias for type of node about dihedral angle 
@@ -97,6 +99,13 @@ def load_params_from_config(
             print(f"Bond length threshold should be float! Continue with default value {BOND_LENGTH_THRESHOLD}")
         else:
             BOND_LENGTH_THRESHOLD = config["bond_length_threshold"]
+            update_number += 1
+            
+    if "acquisition_function" in config:
+        if not isinstance(config["acquisition_function"], str):
+            print(f"Acquisition function should be str! Continue with default value {ACQUISITION_FUNCTION}")
+        else:
+            ACQUISITION_FUNCTION = config["acquisition_function"]
             update_number += 1
 
     print(f"Calculation config loaded! {update_number} params were updated!")

@@ -136,7 +136,6 @@ class CoefCalculator:
         """
 
         if bond.IsInRing():
-            print(self.af)
             return self.af == 'ik'
 
         #If one of atoms is terminal

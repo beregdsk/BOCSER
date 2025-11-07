@@ -137,8 +137,12 @@ def change_dihedrals(mol_file_name : str,
                 Chem.MolToMolFile(mol, tmp.name)
                 tmp_mol = Chem.RWMol(Chem.MolFromMolFile(tmp.name, removeHs=False))
 
+            bond_lengths = {b: rdMolTransforms.GetBondLength(tmp_mol.GetConformer(), b[0], b[1]) for b in tmp_mol.GetBonds()}
+            
             mp = AllChem.MMFFGetMoleculeProperties(tmp_mol, mmffVariant='MMFF94')
             ff = AllChem.MMFFGetMoleculeForceField(tmp_mol, mp)
+            for (a, b), value in bond_lengths.items():
+                ff.MMFFAddDistanceConstraint(a, b, False, value, value, 1e4)
             for (a, b, c, d), value in dihedrals:
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False,
                                             np.rad2deg(-value),

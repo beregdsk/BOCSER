@@ -255,7 +255,8 @@ def wait_for_the_end_of_calc(log_name : str, timeout):
             with open(log_name, 'r') as file:
                 log_file = [line for line in file]               
                 if("ORCA TERMINATED NORMALLY" in log_file[-2] or\
-                        "ORCA finished by error" in log_file[-5]):
+                        "ORCA finished by error" in log_file[-5] or\
+                        "Error" in log_file[-2]):
                     break
         except FileNotFoundError:
             pass

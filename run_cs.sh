@@ -10,4 +10,6 @@ export OMP_STACKSIZE=10G
 export OMP_NUM_THREADS=1,1
 export MKL_NUM_THREADS=1
 
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
 python bocser/conf_search.py --config=config.yaml

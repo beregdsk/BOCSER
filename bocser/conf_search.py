@@ -80,7 +80,7 @@ def parse_args_to_mean_func(inp):
     """
     return tf.transpose(inp)
 
-def calc(dihedrals : list[float]) -> float:
+def calc(dihedrals : list[float], ik_loss) -> float:
     """
         Perofrms calculating of energy with current dihedral angels
     """
@@ -120,7 +120,7 @@ def calc(dihedrals : list[float]) -> float:
 
     #Pre-opt
     print('Optimizing constrained struct')
-    en, preopt_status = calc_energy(MOL_FILE_NAME, list(zip(DIHEDRAL_IDS, dihedrals)), NORM_ENERGY, True, constrained_opt=True)
+    en, preopt_status = calc_energy(MOL_FILE_NAME, list(zip(DIHEDRAL_IDS, dihedrals)), NORM_ENERGY, True, constrained_opt=True, ik_loss=ik_loss)
     LAST_OPT_OK = preopt_status
     print(f"Status of preopt: {preopt_status}; LAST_OPT_OK: {LAST_OPT_OK}")
     if not preopt_status:
@@ -131,7 +131,7 @@ def calc(dihedrals : list[float]) -> float:
     print('Optimized!\nLoading xyz from preopt')
     xyz_from_constrained = load_last_optimized_structure_xyz_block(MOL_FILE_NAME)
     print('Loaded!\nFull opt')
-    en, opt_status = calc_energy(MOL_FILE_NAME, list(zip(DIHEDRAL_IDS, dihedrals)), NORM_ENERGY, True, force_xyz_block=xyz_from_constrained)
+    en, opt_status = calc_energy(MOL_FILE_NAME, list(zip(DIHEDRAL_IDS, dihedrals)), NORM_ENERGY, True, force_xyz_block=xyz_from_constrained, ik_loss=ik_loss)
     LAST_OPT_OK = opt_status
     print(f"Status of opt: {opt_status}; LAST_OPT_OK: {LAST_OPT_OK}")
     print(f'Optimized! En = {en}')
@@ -160,7 +160,7 @@ def max_comp_dist(x1, x2, period : float = 2 * np.pi):
 # defines a function that will be predicted
 # cur - input data 'tensor' [n, inp_dim], n - num of points, inp_dim - num of dimensions
 def func(cur): 
-    return tf.map_fn(fn = lambda x : np.array([calc(x)]), elems = cur)
+    return tf.map_fn(fn = lambda x : np.array([calc(x, ik_loss)]), elems = cur)
 
 def upd_points(dataset : Dataset, model : gpflow.models.gpr.GPR) -> tuple[Dataset, gpflow.models.gpr.GPR]:
     """
@@ -344,7 +344,7 @@ search_space = Box([0. for _ in range(search_dim)], [2 * np.pi for _ in range(se
 #Calc normalizing energy
 #in kcal/mol!
 
-NORM_ENERGY, _ = calc_energy(MOL_FILE_NAME, dihedrals=[], norm_energy=0.)#-367398.19960427243
+NORM_ENERGY, _ = calc_energy(MOL_FILE_NAME, dihedrals=[], norm_energy=0., ik_loss=ik_loss)#-367398.19960427243
 
 print(f"Norm energy: {NORM_ENERGY}")
 

@@ -15,6 +15,8 @@ from typing import Dict
 from default_vals import ConfSearchConfig
 
 import tempfile
+import ringo
+from ik_loss import CyclicCollection
 
 HARTRI_TO_KCAL = 627.509474063 
 
@@ -117,7 +119,9 @@ def dist_between_atoms(mol : Chem.rdchem.Mol, i : int, j : int) -> float:
     return np.sqrt((pos_i.x - pos_j.x) ** 2 + (pos_i.y - pos_j.y) ** 2 + (pos_i.z - pos_j.z) ** 2)
 
 def change_dihedrals(mol_file_name : str,
-                     dihedrals : list[dihedral], full_block = False) -> Union[str, None]:
+                     dihedrals : list[dihedral], 
+                     ik_loss = None,
+                     full_block = False) -> Union[str, None]:
     """
         changinga all dihedrals in 'dihedrals' 
         (degree in rads, numeration starts with zero),
@@ -136,16 +140,14 @@ def change_dihedrals(mol_file_name : str,
             with tempfile.NamedTemporaryFile(suffix=".xyz", delete=True) as tmp:
                 Chem.MolToMolFile(mol, tmp.name)
                 tmp_mol = Chem.RWMol(Chem.MolFromMolFile(tmp.name, removeHs=False))
-
-            bond_lengths = {
-                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): 
-                    rdMolTransforms.GetBondLength(tmp_mol.GetConformer(), b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in tmp_mol.GetBonds()
-                }
             
             mp = AllChem.MMFFGetMoleculeProperties(tmp_mol, mmffVariant='MMFF94')
             ff = AllChem.MMFFGetMoleculeForceField(tmp_mol, mp)
-            for (a, b), value in bond_lengths.items():
+            for (a, b), value in ik_loss.bond_lengths.items():
                 ff.MMFFAddDistanceConstraint(a, b, False, value, value, 1e4)
+            for (a, b, c), value in ik_loss.valence_angles.items():
+                ff.MMFFAddAngleConstraint(a, b, c, False, np.rad2deg(value),
+                                        np.rad2deg(value), 1e4)
             for (a, b, c, d), value in dihedrals:
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False,
                                             np.rad2deg(-value),
@@ -308,7 +310,8 @@ def calc_energy(
         norm_energy : float = 0, 
         save_structs : bool = True,
         constrained_opt : bool = False,
-        force_xyz_block : Union[None, str] = None
+        force_xyz_block : Union[None, str] = None,
+        ik_loss = None
     ) -> float:
     """
         calculates energy of molecule from 'mol_file_name'
@@ -323,7 +326,7 @@ def calc_energy(
     if force_xyz_block:
         xyz_upd = force_xyz_block
     else:
-        xyz_upd = change_dihedrals(mol_file_name, dihedrals)
+        xyz_upd = change_dihedrals(mol_file_name, dihedrals, ik_loss)
 
     print(dihedrals)
     print(list(zip(*dihedrals)))

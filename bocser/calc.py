@@ -138,8 +138,8 @@ def change_dihedrals(mol_file_name : str,
                 tmp_mol = Chem.RWMol(Chem.MolFromMolFile(tmp.name, removeHs=False))
 
             bond_lengths = {
-                (b.GetBeginAtom(), b.GetEndAtom()): 
-                    rdMolTransforms.GetBondLength(tmp_mol.GetConformer(), b.GetBeginAtom(), b.GetEndAtom()) for b in tmp_mol.GetBonds()
+                (b.GetBeginAtomIdx(), b.GetEndAtomIdx()): 
+                    rdMolTransforms.GetBondLength(tmp_mol.GetConformer(), b.GetBeginAtomIdx(), b.GetEndAtomIdx()) for b in tmp_mol.GetBonds()
                 }
             
             mp = AllChem.MMFFGetMoleculeProperties(tmp_mol, mmffVariant='MMFF94')

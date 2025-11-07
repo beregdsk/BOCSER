@@ -43,6 +43,8 @@ from imp_var_with_ik import ImprovementVarianceWithIK
 from tensorflow.python.ops.numpy_ops import np_config
 np_config.enable_numpy_behavior()
 
+tf.config.run_functions_eagerly(True)
+
 MOL_FILE_NAME = None
 NORM_ENERGY = 0.
 

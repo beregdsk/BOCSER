@@ -41,7 +41,7 @@ def load_params_from_config(
     config : Dict[str, object]
 ) -> None:
     
-    global ORCA_EXEC_COMMAND, NUM_OF_PROCS, ORCA_METHOD, ORCA, CHARGE, MULTIPL
+    global ORCA_EXEC_COMMAND, NUM_OF_PROCS, ORCA_METHOD, ORCA, CHARGE, MULTIPL, ACQUISITION_FUNCTION
     
     print(f"Loading calculation config!")
     update_number = 0

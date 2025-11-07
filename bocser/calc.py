@@ -128,7 +128,7 @@ def change_dihedrals(mol_file_name : str,
     try:
         mol = Chem.MolFromMolFile(mol_file_name, removeHs = False)
         
-        if ConfSearchConfig.acquisition_function != 'ik':
+        if ACQUISITION_FUNCTION != 'ik':
             for note in dihedrals:
                 atoms, degree = note
                 rdMolTransforms.SetDihedralRad(mol.GetConformer(), *atoms, degree)

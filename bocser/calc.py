@@ -116,54 +116,59 @@ def dist_between_atoms(mol : Chem.rdchem.Mol, i : int, j : int) -> float:
     
     return np.sqrt((pos_i.x - pos_j.x) ** 2 + (pos_i.y - pos_j.y) ** 2 + (pos_i.z - pos_j.z) ** 2)
 
-def change_dihedrals(mol_file_name : str,
-                     dihedrals : list[dihedral], 
-                     ik_loss = None,
-                     full_block = False) -> Union[str, None]:
-    """
-        changinga all dihedrals in 'dihedrals' 
-        (degree in rads, numeration starts with zero),
-        returns coords block of xyz file
-        if no file exists, return None
-        if fullBlock is True returns full xyz block
-    """
+def change_dihedrals(mol_file_name: str,
+                     dihedrals: list[list[tuple[tuple[int,int,int,int], float]]],
+                     ik_loss=None,
+                     full_block=False):
+
     try:
-        mol = Chem.MolFromMolFile(mol_file_name, removeHs = False)
-        
+        mol = Chem.MolFromMolFile(mol_file_name, removeHs=False)
+
         if ACQUISITION_FUNCTION != 'ik':
-            for note in dihedrals:
-                atoms, degree = note
-                rdMolTransforms.SetDihedralRad(mol.GetConformer(), *atoms, degree)
+            for cycle in dihedrals:
+                for atoms, degree in cycle:
+                    rdMolTransforms.SetDihedralRad(mol.GetConformer(), *atoms, degree)
+
         else:
             with tempfile.NamedTemporaryFile(suffix=".xyz", delete=True) as tmp:
                 Chem.MolToMolFile(mol, tmp.name)
                 tmp_mol = Chem.RWMol(Chem.MolFromMolFile(tmp.name, removeHs=False))
-            
+
             mp = AllChem.MMFFGetMoleculeProperties(tmp_mol, mmffVariant='MMFF94')
             ff = AllChem.MMFFGetMoleculeForceField(tmp_mol, mp)
-            for (a, b), value in ik_loss.bond_lengths.items():
-                ff.MMFFAddDistanceConstraint(a, b, False, value, value, 1e4)
-            for (a, b, c), value in ik_loss.valence_angles.items():
-                ff.MMFFAddAngleConstraint(a, b, c, False, np.rad2deg(value),
-                                        np.rad2deg(value), 1e4)
-            for (a, b, c, d), value in dihedrals:
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False,
-                                            np.rad2deg(-value),
-                                            np.rad2deg(-value), 1e4)
+
+            for bl_dict in ik_loss.bond_lengths:
+                for (a, b), value in bl_dict.items():
+                    ff.MMFFAddDistanceConstraint(a, b, False, value, value, 1e4)
+
+            for va_dict in ik_loss.valence_angles:
+                for (a, b, c), value in va_dict.items():
+                    ff.MMFFAddAngleConstraint(a, b, c, False,
+                                              np.rad2deg(value),
+                                              np.rad2deg(value), 1e4)
+
+            for cycle in dihedrals:
+                for (a, b, c, d), value in cycle:
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False,
+                                                np.rad2deg(-value),
+                                                np.rad2deg(-value), 1e4)
+
             ff.Minimize(maxIts=10000)
             mol = tmp_mol
-            
-            for i in range(len(dihedrals)):
-                a, d = dihedrals[i]
-                dihedrals[i] = a, rdMolTransforms.GetDihedralRad(mol.GetConformer(), *a)
-            
-        if(full_block):
+
+            for i, cycle in enumerate(dihedrals):
+                for j, (atoms, _) in enumerate(cycle):
+                    new_val = rdMolTransforms.GetDihedralRad(mol.GetConformer(), *atoms)
+                    dihedrals[i][j] = (atoms, new_val)
+
+        if full_block:
             return Chem.MolToXYZBlock(mol)
         return '\n'.join(Chem.MolToXYZBlock(mol).split('\n')[2:])
+
     except OSError:
         print("No such file!")
         return None
-
+    
 def to_degrees(dihedrals : list[dihedral]) -> list[dihedral]:
     """
         Convert rads to degrees in dihedrals

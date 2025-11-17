@@ -222,46 +222,50 @@ class CoefCalculator:
         for bond in mol.GetBonds():
             if not self.is_interesting(bond) or not bond.IsInRing():
                 continue
-
             edges.append((bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
-            
+
         graph = nx.from_edgelist(edges)
         graph.remove_edges_from(nx.bridges(graph))
-        
-        dihedrals = []
-        dihedrals_idxs = []
-        ring_traversal = None
-        for comp in nx.connected_components(graph):
-            if len(comp) == 1:
-                continue
-            subg = graph.subgraph(comp)
-            simple_ring, mapping = vf3py.are_isomorphic(
-                nx.cycle_graph(subg.number_of_nodes()),
-                subg,
-                get_mapping=True,
-            )
-            assert simple_ring, "Only simple lone rings are supported for now"
-            assert ring_traversal is None, "Only one ring is supported for now"
-            ring_traversal = CyclicCollection(
-                [mapping[i] for i in range(subg.number_of_nodes())])
 
-            assert len(dihedrals_idxs) == 0, "Only one ring is supported for now"
-            dihedrals += [
-                tuple(ring_traversal[i + step] for step in (-1, 0, 1, 2))
-                for i in range(subg.number_of_nodes())
-            ]
+        all_dihedrals = []
+        all_ring_traversals = []
+        all_dihedral_idxs = []
+
+        for comp in nx.connected_components(graph):
+            if len(comp) <= 2:
+                continue
+
+            subg = graph.subgraph(comp)
             
-            for d in dihedrals:
-                for id_, f in enumerate(self.frags.keys()):
-                    if all([d[i] in f for i in range(4)]):
-                        dihedrals_idxs.append(id_)
-                        break
-                    
-            if len(dihedrals_idxs) != len(dihedrals):
-                raise ValueError("Can't find all dihedrals in frags")
-            
-        return dihedrals, ring_traversal.a, dihedrals_idxs
-        
+            cycles = nx.cycle_basis(subg)
+            cycles = sorted(cycles, key=lambda c: min(c))
+
+            for cycle in cycles:
+                ring_nodes = cycle
+
+                ring_traversal = CyclicCollection(ring_nodes)
+                all_ring_traversals.append(ring_traversal.a)
+
+                dihedrals = [
+                    tuple(ring_traversal[i + step] for step in (-1, 0, 1, 2))
+                    for i in range(len(ring_nodes))
+                ]
+
+                dihedral_idxs = []
+                for d in dihedrals:
+                    found = False
+                    for id_, f in enumerate(self.frags.keys()):
+                        if all(atom in f for atom in d):
+                            dihedral_idxs.append(id_)
+                            found = True
+                            break
+                    if not found:
+                        raise ValueError(f"Can't match dihedral {d} to any fragment")
+
+                all_dihedrals.append(dihedrals)
+                all_dihedral_idxs.append(dihedral_idxs)
+
+        return all_dihedrals, all_ring_traversals, all_dihedral_idxs        
             
     def convert_all_aromatic_to_aliphatic(
         self,

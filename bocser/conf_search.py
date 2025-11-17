@@ -3,7 +3,6 @@ from coef_from_grid import pes, pes_tf, pes_tf_grad
 from calc import (
     calc_energy, 
     load_last_optimized_structure_xyz_block,
-    change_dihedrals,
     parse_points_from_trj,
     load_params_from_config,
     increase_structure_id
@@ -22,12 +21,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from trieste.data import Dataset
-from trieste.objectives.utils import mk_observer
 from trieste.space import Box
 from trieste.models.gpflow.models import GaussianProcessRegression
 from trieste.acquisition.rule import EfficientGlobalOptimization
-from scipy.special import erf
-import sys
 import os
 import yaml
 import json
@@ -37,7 +33,7 @@ from trieste.acquisition.function import ExpectedImprovement
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from ik_loss import IKLoss, get_dihedral_angles
+from ik_loss import IKLoss
 from imp_var_with_ik import ImprovementVarianceWithIK
 
 from tensorflow.python.ops.numpy_ops import np_config

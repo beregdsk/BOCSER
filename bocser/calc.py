@@ -15,8 +15,6 @@ from typing import Dict
 from default_vals import ConfSearchConfig
 
 import tempfile
-import ringo
-from ik_loss import CyclicCollection
 
 HARTRI_TO_KCAL = 627.509474063 
 

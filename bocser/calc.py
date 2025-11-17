@@ -147,11 +147,10 @@ def change_dihedrals(mol_file_name: str,
                                               np.rad2deg(value),
                                               np.rad2deg(value), 1e4)
 
-            for cycle in dihedrals:
-                for (a, b, c, d), value in cycle:
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False,
-                                                np.rad2deg(-value),
-                                                np.rad2deg(-value), 1e4)
+            for (a, b, c, d), value in dihedrals:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False,
+                                            np.rad2deg(-value),
+                                            np.rad2deg(-value), 1e4)
 
             ff.Minimize(maxIts=10000)
             mol = tmp_mol
